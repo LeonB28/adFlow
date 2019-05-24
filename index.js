@@ -4,6 +4,32 @@ const minInstallDelay = 30
 const c = require('./commonFunctions.js')
 const args = process.argv.slice(2)
 
+function flowByMode(mode) {
+  var flow;
+  if (mode === "rec") flow = onlyRecomandationFlowAdNames
+  else if (mode === "trace") flow = recomandationWithTraceFlow
+  else if (mode === "traceScored") flow = recomandationWithScoredTraceFlow
+  else if (mode === "imp") flow = sendImpressionFlow
+  else if (mode === "click") flow = sendClikFlow
+  else if (mode === "all") flow = completeFlow
+  else if (mode === "help") flow = help
+  else flow = badFlow(mode)
+
+  return flow;
+}
+
+function main(commandLineArgs) {
+  let mode = commandLineArgs.length == 0 ? "rec" : args[0]
+
+  flowByMode(mode)
+  .fork(
+    function (error) {
+        console.error(error)
+    },
+    function (data) {
+        console.log(data)
+    })
+  }
 
 function options(req, withTrace) {
     let path = withTrace ? "?tracing=Youapp1!" : ""
@@ -46,11 +72,9 @@ function pickAd(response) {
     })
 }
 
-
 function extractImpressionHost(ad) {
     return ad.tracking_urls.impression_url;
 }
-
 
 function sendImpression(url) {
     return new Task(function (reject, resolve) {
@@ -89,7 +113,7 @@ function sendClick(clickParams) {
 }
 
 function buildInstallParam(clickParams) {
-    var appId = clickParams.imageUrl.split("/")[5]
+    let appId = clickParams.imageUrl.split("/")[5]
     return clickParams.id + "_" + appId + "_2017-09-05"
 }
 
@@ -113,9 +137,17 @@ function sendInstall(installParam, server) {
     })
 }
 
+function filterReasons(logs) {
+  return logs.slice(0, 5);
+}
+
 function trace(response) {
     parsedBody = JSON.parse(JSON.stringify(response))
     return parsedBody.ad_units[0].trace
+}
+
+function readablePti(x) {
+  return Number.parseFloat(x).toFixed(20);
 }
 
 function scoredMap(logs) {
@@ -123,64 +155,61 @@ function scoredMap(logs) {
 
     return filterReasons(logs).concat(scored.map(log => {
         values = log.split("||")
+
         return {
-            'businessPartnerId': values[11],
-            'prtProductId': values[14],
-            'tEcmp': values[19],
             'cmpName': values[2],
-            'pti': values[25],
-            'valuation': values[26],
-            'profitable': values[27]
+            'pti': readablePti(values[23]),
+            'profitable': values[32],
         }
     }))
 
 }
 
-let mode = args.length == 0 ? "rec" : args[0]
 let req = c.requestFromArgs(args)
 
 const onlyRecomandationFlow = onlineAds(options(req, false));
-const recomandationWithTraceFlow = onlineAds(options(req, true));
-const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(trace).map(scoredMap);
+const onlyRecomandationFlowAdNames = onlineAds(options(req, false)).map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
+const recomandationWithTraceFlow = onlineAds(options(req, true)).map(trace);
+const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(scoredMap);
 const sendImpressionFlow = onlyRecomandationFlow.chain(pickAd).map(extractImpressionHost).chain(sendImpression)
 
-const allFlow = function() {
-
+function createSendClickFlow() {
   let ad = onlyRecomandationFlow.chain(pickAd)
 
-   ad
+  ad
    .map(extractImpressionHost)
    .chain(sendImpression)
 
   return ad
   .map(exctractClickUrl)
   .chain(sendClick)
+}
+
+const sendClikFlow = createSendClickFlow().map(() => "Click Sent")
+
+const completeFlow = function() {
+  createSendClickFlow()
   .map(a => c.wait(a, minInstallDelay))
   .map(buildInstallParam)
   .chain(params => sendInstall(params, req.server))
   .map(() => "Install sent")
-
 }()
 
+const help = new Task(function (reject, resolve) {
+  return resolve(" format: mode --env=[env] --country=[countryCode] --ac=[accessToken]\n" +
+      "Modes: \n" +
+      " rec - only recomendation with app names \n" +
+      " trace - only recomendation with trace \n" +
+      " traceScored - only recomendation with parsed trace \n" +
+      " imp - recomendation and impression \n" +
+      " click - recomendation, impression and click \n" +
+      " all - recomendation, impression, click and install \n" +
+      "Access Tokens: \n" +
+      " default - 79e49603-aa64-48e3-aa48-47823c10825f\n" +
+      " localWithModel705\n" +
+      " localNoModel867\n" +
+      " stgWithModel\n"
+    )})
 
-function flowByMode(mode) {
-  var flow = badFlow(mode)
-    if (mode === "rec") flow = onlyRecomandationFlow
-    else if (mode === "trace") flow = recomandationWithTraceFlow
-    else if (mode === "traceScored") flow = recomandationWithScoredTraceFlow
-    else if (mode === "imp") flow = sendImpressionFlow
-    else if (mode === "all") flow = allFlow
 
-  return flow;
-}
-
-
-//MAIN
-flowByMode(mode)
-.fork(
-    function (error) {
-        console.log(error)
-    },
-    function (data) {
-        console.log(data)
-    })
+main(args)

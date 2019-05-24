@@ -13,6 +13,7 @@ module.exports = {
     let country = this.flagValue(args, "--country", "us")
     let accessToken = this.flagValue(args, "--ac", "fa2cb362-3b16-4a26-82bb-3af0be3efecd")
 
+
     let withCountry = this.country(country)
     let withAt = this.accessToken(accessToken)
 
@@ -46,15 +47,15 @@ module.exports = {
      }).join('&');
  },
 
-wait: function(content, seconds) {
+wait: function(context, seconds) {
      console.log("sleep for " + seconds)
      sleep.sleep(seconds)
-     return content;
+     return context;
  },
 
- log:  function(content) {
-     console.log(content)
-     return content;
+ log:  function(context) {
+     console.log(context)
+     return context;
  },
 
  flagValue: function(args, flagPrefix, defaultValue) {
