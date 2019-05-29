@@ -4,6 +4,28 @@ const minInstallDelay = 30
 const c = require('./commonFunctions.js')
 const args = process.argv.slice(2)
 
+let req = c.requestFromArgs(args)
+
+// Flows:
+const onlyRecomandationFlow = onlineAds(options(req, false));
+const onlyRecomandationFlowAdNames = onlineAds(options(req, false))
+                                        .map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
+const recomandationWithTraceFlow = onlineAds(options(req, true)).map(trace);
+const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(scoredMap);
+const sendImpressionFlow = onlyRecomandationFlow
+                                .chain(pickAd).map(extractImpressionHost)
+                                .chain(sendImpression);
+
+const sendClikFlow = createSendClickFlow().map(() => "Click Sent");
+           
+const completeFlow = function() {
+  createSendClickFlow()
+  .map(a => c.wait(a, minInstallDelay))
+  .map(buildInstallParam)
+  .chain(params => sendInstall(params, req.server))
+  .map(() => "Install sent")
+}();
+
 function flowByMode(mode) {
   var flow;
   if (mode === "rec") flow = onlyRecomandationFlowAdNames
@@ -17,6 +39,18 @@ function flowByMode(mode) {
 
   return flow;
 }
+
+function createSendClickFlow() {
+    let ad = onlyRecomandationFlow.chain(pickAd)
+  
+    ad
+     .map(extractImpressionHost)
+     .chain(sendImpression)
+  
+    return ad
+    .map(exctractClickUrl)
+    .chain(sendClick)
+  }
 
 function main(commandLineArgs) {
   let mode = commandLineArgs.length == 0 ? "rec" : args[0]
@@ -164,36 +198,6 @@ function scoredMap(logs) {
     }))
 
 }
-
-let req = c.requestFromArgs(args)
-
-const onlyRecomandationFlow = onlineAds(options(req, false));
-const onlyRecomandationFlowAdNames = onlineAds(options(req, false)).map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
-const recomandationWithTraceFlow = onlineAds(options(req, true)).map(trace);
-const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(scoredMap);
-const sendImpressionFlow = onlyRecomandationFlow.chain(pickAd).map(extractImpressionHost).chain(sendImpression)
-
-function createSendClickFlow() {
-  let ad = onlyRecomandationFlow.chain(pickAd)
-
-  ad
-   .map(extractImpressionHost)
-   .chain(sendImpression)
-
-  return ad
-  .map(exctractClickUrl)
-  .chain(sendClick)
-}
-
-const sendClikFlow = createSendClickFlow().map(() => "Click Sent")
-
-const completeFlow = function() {
-  createSendClickFlow()
-  .map(a => c.wait(a, minInstallDelay))
-  .map(buildInstallParam)
-  .chain(params => sendInstall(params, req.server))
-  .map(() => "Install sent")
-}()
 
 const help = new Task(function (reject, resolve) {
   return resolve(" format: mode --env=[env] --country=[countryCode] --ac=[accessToken]\n" +
