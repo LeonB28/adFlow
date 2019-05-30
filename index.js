@@ -6,7 +6,9 @@ const args = process.argv.slice(2)
 
 let req = c.requestFromArgs(args)
 
-// Flows:
+
+
+/* Flows: */
 const onlyRecomandationFlow = onlineAds(options(req, false));
 const onlyRecomandationFlowAdNames = onlineAds(options(req, false))
                                         .map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
@@ -19,7 +21,7 @@ const sendImpressionFlow = onlyRecomandationFlow
 const sendClikFlow = createSendClickFlow().map(() => "Click Sent");
            
 const completeFlow = function() {
-  createSendClickFlow()
+  return createSendClickFlow()
   .map(a => c.wait(a, minInstallDelay))
   .map(buildInstallParam)
   .chain(params => sendInstall(params, req.server))
@@ -27,16 +29,35 @@ const completeFlow = function() {
 }();
 
 function flowByMode(mode) {
-  var flow;
-  if (mode === "rec") flow = onlyRecomandationFlowAdNames
-  else if (mode === "trace") flow = recomandationWithTraceFlow
-  else if (mode === "traceScored") flow = recomandationWithScoredTraceFlow
-  else if (mode === "imp") flow = sendImpressionFlow
-  else if (mode === "click") flow = sendClikFlow
-  else if (mode === "all") flow = completeFlow
-  else if (mode === "help") flow = help
-  else flow = badFlow(mode)
-
+    var flow
+    switch (mode) {
+        case "rec":
+            flow = onlyRecomandationFlowAdNames
+            break;
+        case "trace":
+            flow = recomandationWithTraceFlow
+            break;
+        case "traceScored":
+            flow = recomandationWithScoredTraceFlow
+            break;
+        case "imp":
+            flow = sendImpressionFlow
+            break;
+        case "imp":
+            flow = sendImpressionFlow
+            break;
+        case "click":
+            flow = sendClikFlow
+            break;
+        case "all":
+            flow = completeFlow
+            break;
+        case "help":
+            flow = help
+            break;
+        default:
+            break;
+    }
   return flow;
 }
 
