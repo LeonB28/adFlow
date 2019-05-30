@@ -56,6 +56,7 @@ function flowByMode(mode) {
             flow = help
             break;
         default:
+            flow = badFlow
             break;
     }
   return flow;
@@ -161,7 +162,8 @@ function sendClick(clickParams) {
         }
 
         request(getOpt, function (error, response, body) {
-            if (response.statusCode == 200) resolve(clickParams)
+            if (!error && resolve && response.statusCode == 200) resolve(clickParams)
+            else if(error) reject(error)
             else reject(response)
         })
     })
