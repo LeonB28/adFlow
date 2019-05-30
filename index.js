@@ -12,6 +12,7 @@ let req = c.requestFromArgs(args)
 const onlyRecomandationFlow = onlineAds(options(req, false));
 const onlyRecomandationFlowAdNames = onlineAds(options(req, false))
                                         .map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
+
 const recomandationWithTraceFlow = onlineAds(options(req, true)).map(trace);
 const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(scoredMap);
 const sendImpressionFlow = onlyRecomandationFlow
