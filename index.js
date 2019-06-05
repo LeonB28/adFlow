@@ -9,13 +9,13 @@ let req = c.requestFromArgs(args)
 
 
 /* Flows: */
-const onlyRecomandationFlow = onlineAds(options(req, false));
-const onlyRecomandationFlowAdNames = onlineAds(options(req, false))
+const onlyRecommendationFlow = onlineAds(options(req, false));
+const onlyRecommendationFlowAdNames = onlineAds(options(req, false))
                                         .map(res => res.ad_units[0].ads.map(a => a.app_info.app_name));
 
-const recomandationWithTraceFlow = onlineAds(options(req, true)).map(trace);
-const recomandationWithScoredTraceFlow = recomandationWithTraceFlow.map(scoredMap);
-const sendImpressionFlow = onlyRecomandationFlow
+const recommendationWithTraceFlow = onlineAds(options(req, true)).map(trace);
+const recommendationWithScoredTraceFlow = recommendationWithTraceFlow.map(scoredMap);
+const sendImpressionFlow = onlyRecommendationFlow
                                 .chain(pickAd).map(extractImpressionHost)
                                 .chain(sendImpression);
 
@@ -33,13 +33,13 @@ function flowByMode(mode) {
     var flow
     switch (mode) {
         case "rec":
-            flow = onlyRecomandationFlowAdNames
+            flow = onlyRecommendationFlowAdNames
             break;
         case "trace":
-            flow = recomandationWithTraceFlow
+            flow = recommendationWithTraceFlow
             break;
         case "traceScored":
-            flow = recomandationWithScoredTraceFlow
+            flow = recommendationWithScoredTraceFlow
             break;
         case "imp":
             flow = sendImpressionFlow
@@ -64,7 +64,7 @@ function flowByMode(mode) {
 }
 
 function createSendClickFlow() {
-    let ad = onlyRecomandationFlow.chain(pickAd)
+    let ad = onlyRecommendationFlow.chain(pickAd)
   
     ad
      .map(extractImpressionHost)
@@ -89,7 +89,7 @@ function main(commandLineArgs) {
   }
 
 function options(req, withTrace) {
-    let path = withTrace ? "?tracing=Youapp1!" : ""
+    let path = withTrace ? "/trace" : ""
     return {
         url: req.server + "/online" + path,
         method: 'POST',
